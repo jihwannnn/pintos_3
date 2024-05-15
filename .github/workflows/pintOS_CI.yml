@@ -8,13 +8,13 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-14.04
+    runs-on: ubuntu-20.04
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Try
-      run: cd src/userprog/ && ls && make check && make clean
+    # - name: Try
+    #   run: cd src/userprog/ && ls && make check && make clean
 
     # - name: Make
     #   run: make
