@@ -16,9 +16,12 @@ jobs:
     - name: Install make
       run: sudo apt-get update && sudo apt-get install make
 
-    - name: Run make
-      run:
-        cd src/userprog/
-        make
-        make check
-        make clean
+    - name: Move to the file
+      run: cd src/userprog/
+
+    - name: Check
+      run: make check
+
+    - name: Clean
+      run: make clean
+        
