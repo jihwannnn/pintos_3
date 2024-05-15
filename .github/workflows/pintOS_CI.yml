@@ -19,6 +19,9 @@ jobs:
     - name: Move to the file
       run: cd src/userprog/
 
+    - name: Make
+      run: make
+
     - name: Check
       run: make check
 
