@@ -13,8 +13,8 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Install make
-      run: sudo apt-get update && sudo apt-get install make
+    # - name: Install make
+    #   run: sudo apt-get update && sudo apt-get install make
 
     - name: Move to the file
       run: cd src/userprog/
