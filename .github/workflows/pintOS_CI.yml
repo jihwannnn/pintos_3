@@ -17,10 +17,7 @@ jobs:
     #   run: sudo apt-get update && sudo apt-get install make
 
     - name: Move to the file
-      run: cd src/userprog/
-
-    - name: checking address
-      run: ls
+      run: cd src/userprog/ && ls
 
     - name: Make
       run: make
