@@ -1,0 +1,27 @@
+name: pintOS CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+
+    steps:
+    - uses: actions/checkout@v4
+
+    # - name: Try
+    #   run: cd src/userprog/ && ls && make check && make clean
+
+    # - name: Make
+    #   run: make
+
+    # - name: Check
+    #   run: make check
+
+    # - name: Clean
+    #   run: make clean
+        
