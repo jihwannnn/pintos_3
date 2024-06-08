@@ -12,6 +12,10 @@
 #include "threads/malloc.h"
 #include "filesys/file.h"
 #include "devices/input.h"
+// pt 3
+#include "vm/page.h"
+#include "threads/palloc.h" 
+#include "threads/synch.h"  
 
 struct file_descriptor
 {
@@ -20,6 +24,8 @@ struct file_descriptor
   struct file *file_struct;
   struct list_elem elem;
 };
+
+
 
 /* a list of open files, represents all the files open by the user process
    through syscalls. */
@@ -45,6 +51,10 @@ static int write (int, const void *, unsigned);
 static void seek (int, unsigned);
 static unsigned tell (int);
 static void close (int);
+
+// pt 3 추가
+mmapid_t mmap (int, void *);
+void munmap (mmapid_t);
 /* End of system call functions */
 
 static struct file_descriptor *get_open_file (int);
@@ -52,6 +62,8 @@ static void close_open_file (int);
 bool is_valid_ptr (const void *);
 static int allocate_fd (void);
 void close_file_by_owner (tid_t);
+static struct mmap_desc *find_mmap_desc(struct thread *, mmapid_t);
+static int allocate_mid (void);
 
 void
 syscall_init (void) 
@@ -116,6 +128,12 @@ syscall_handler (struct intr_frame *f)
         case SYS_CLOSE:
           close (*(esp + 1));
           break;
+        case SYS_MMAP:
+	        f->eax = mmap (*(esp + 1), (void *) *(esp + 2));
+	        break;
+	      case SYS_MUNMAP:
+	        munmap (*(esp + 1));
+	        break;
         default:
           break;
         }
@@ -452,4 +470,111 @@ close_file_by_owner (tid_t tid)
 	      }
       e = next;
     }
+}
+
+// pt 3 추가
+mmapid_t
+mmap(int fd, void *addr) {
+  if (addr == NULL || pg_ofs(addr) != 0) {
+    return -1;
+  }
+
+  struct file *file = get_open_file(fd);
+  if (file == NULL) {
+    return -1;
+  }
+
+  struct file *reopened_file = file_reopen(file);
+  if (reopened_file == NULL) {
+    return -1;
+  }
+
+  off_t length = file_length(reopened_file);
+  if (length == 0) {
+    file_close(reopened_file);
+    return -1;
+  }
+
+  struct thread *t = thread_current();
+  struct supplemental_page_table *supt = t->supt;
+  off_t offset;
+
+  for (offset = 0; offset < length; offset += PGSIZE) {
+    void *upage = addr + offset;
+    if (vm_supt_lookup(supt, upage) != NULL) {
+      file_close(reopened_file);
+      return -1;
+    }
+
+    bool writable = true;
+    uint32_t read_bytes = length - offset < PGSIZE ? length - offset : PGSIZE;
+    uint32_t zero_bytes = PGSIZE - read_bytes;
+
+    if (!vm_supt_install_filesys(supt, upage, reopened_file, offset, read_bytes, zero_bytes, writable)) {
+      file_close(reopened_file);
+      return -1;
+    }
+  }
+
+  mmapid_t mmap_id = allocate_mid();
+  struct mmap_desc *mmap_d = malloc(sizeof *mmap_d);
+  if (mmap_d == NULL) {
+    file_close(reopened_file);
+    return -1;
+  }
+
+  mmap_d->id = mmap_id;
+  mmap_d->file = reopened_file;
+  mmap_d->addr = addr;
+  mmap_d->size = length;
+  list_push_back(&t->mmap_list, &mmap_d->elem);
+
+  return mmap_id;
+}
+
+
+void
+munmap(mmapid_t mid) {
+  struct thread *t = thread_current();
+  struct mmap_desc *mmap_d = find_mmap_desc(t, mid);
+  if (mmap_d == NULL) {
+    return;
+  }
+
+  void *addr = mmap_d->addr;
+  size_t size = mmap_d->size;
+  struct supplemental_page_table *supt = t->supt;
+  off_t offset;
+
+  for (offset = 0; offset < size; offset += PGSIZE) {
+    void *upage = addr + offset;
+    struct supplemental_page_table_entry *spte = vm_supt_lookup(supt, upage);
+    if (spte != NULL) {
+      vm_supt_mm_unmap(supt, t->pagedir, upage, mmap_d->file, offset, spte->read_bytes);
+    }
+  }
+
+  file_close(mmap_d->file);
+  list_remove(&mmap_d->elem);
+  free(mmap_d);
+}
+
+
+static struct mmap_desc *
+find_mmap_desc(struct thread *t, mmapid_t mid) {
+  struct list_elem *e;
+  for (e = list_begin(&t->mmap_list); e != list_end(&t->mmap_list); e = list_next(e)) {
+    struct mmap_desc *mmap_d = list_entry(e, struct mmap_desc, elem);
+    if (mmap_d->id == mid) {
+      return mmap_d;
+    }
+  }
+  return NULL;
+} 
+
+static int
+allocate_mid ()
+{
+  static int mid_current = 1;
+  return ++mid_current;
 }

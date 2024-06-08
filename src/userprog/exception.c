@@ -5,6 +5,10 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+// pt 3
+#include "vm/page.h" 
+#include "vm/frame.h"
+#include "vm/swap.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -13,6 +17,7 @@ static void kill (struct intr_frame *);
 static void page_fault (struct intr_frame *);
 /* exit with status -1 for invalid addresses */
 static void exit (int);
+
 
 /* Registers handlers for interrupts that can be caused by user
    programs.
@@ -72,8 +77,7 @@ exception_print_stats (void)
 
 /* Handler for an exception (probably) caused by a user process. */
 static void
-kill (struct intr_frame *f) 
-{
+kill (struct intr_frame *f) {
   /* This interrupt is one (probably) caused by a user process.
      For example, the process might have tried to access unmapped
      virtual memory (a page fault).  For now, we simply kill the
@@ -151,19 +155,32 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  if (!is_valid_ptr (fault_addr))
+  if (!is_user_vaddr (fault_addr) || fault_addr == NULL)
     exit (-1);
 
-  /* To implement virtual memory, delete the rest of the function
-     body, and replace it with code that brings in the page to
-     which fault_addr refers. */
-  printf ("Page fault at %p: %s error %s page in %s context.\n",
-          fault_addr,
-          not_present ? "not present" : "rights violation",
-          write ? "writing" : "reading",
-          user ? "user" : "kernel");
-  kill (f);
+  struct thread *cur = thread_current ();
+  struct supplemental_page_table *supt = cur->supt;
+
+  if (not_present) {
+    /* Handle stack growth. */
+    void *esp = user ? f->esp : cur->stack_pointer;
+    if (fault_addr >= (void *)(esp - 32) && fault_addr < PHYS_BASE) {
+      if (!vm_supt_install_zeropage (supt, pg_round_down (fault_addr))) {
+        exit (-1);
+      }
+      return;
+    }
+
+    /* Attempt to load the page from the supplemental page table. */
+    // if (!vm_load_page (supt, cur->pagedir, fault_addr)) {
+    //   exit (-1);
+    // }
+    // return;
+  }
+
+  exit(-1);
 }
+
 
 /* This function is exactly the same as the exit system call inside
  * syscall.c. Putting here for better logical structure.

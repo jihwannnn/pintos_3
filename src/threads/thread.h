@@ -43,6 +43,18 @@ struct waiting_child {
     struct list_elem elem_waiting_child;     // itself
 };
 
+/* Map region identifier. */
+typedef int mmapid_t;
+#define MAP_FAILED ((mmapid_t) -1)
+
+struct mmap_desc {
+  mmapid_t id;             
+  struct list_elem elem;     
+  struct file *file;         
+  void *addr;                
+  size_t size;               
+};
+
 /* A kernel thread or user process.
 
    Each thread structure is stored in its own 4 kB page.  The
@@ -145,6 +157,11 @@ struct thread
 
     /* file struct represents the execuatable of the current thread */ 
     struct file *exec_file;
+
+    // pt 3
+    struct supplemental_page_table *supt;
+    void *stack_pointer;
+    struct list mmap_list;    
 #endif
 
     /* Owned by thread.c. */
