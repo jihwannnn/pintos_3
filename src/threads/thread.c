@@ -827,6 +827,9 @@ init_thread (struct thread *t, const char *name, int priority)
   lock_init (&t->lock_child);
   cond_init (&t->cond_child);
   list_init (&t->children);
+#endif
+
+#ifdef VM
   list_init (&t->mmap_list);
 #endif
 

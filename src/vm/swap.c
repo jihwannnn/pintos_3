@@ -5,13 +5,11 @@
 #include "threads/malloc.h"
 #include <bitmap.h>
 
-/* Swap block and bitmap */
 static struct block *swap_block;
 static struct bitmap *swap_bitmap;
 static size_t swap_size;
 static struct lock swap_lock;
 
-/* Initializes the swap system */
 void
 vm_swap_init(void) {
   swap_block = block_get_role(BLOCK_SWAP);
@@ -27,7 +25,6 @@ vm_swap_init(void) {
   lock_init(&swap_lock);
 }
 
-/* Swaps out a page to the swap block and returns the swap index */
 swap_index_t
 vm_swap_out(void *page) {
   lock_acquire(&swap_lock);
@@ -46,7 +43,6 @@ vm_swap_out(void *page) {
   return swap_index;
 }
 
-/* Swaps in a page from the swap block */
 void
 vm_swap_in(swap_index_t swap_index, void *page) {
   lock_acquire(&swap_lock);

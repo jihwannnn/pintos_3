@@ -269,11 +269,13 @@ filesize (int fd)
 {
   struct file_descriptor *fd_struct;
   int status = -1;
+
   lock_acquire (&fs_lock); 
   fd_struct = get_open_file (fd);
   if (fd_struct != NULL)
     status = file_length (fd_struct->file_struct);
   lock_release (&fs_lock);
+  
   return status;
 }
 

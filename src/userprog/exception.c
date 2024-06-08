@@ -9,6 +9,7 @@
 #include "vm/page.h" 
 #include "vm/frame.h"
 #include "vm/swap.h"
+#include "threads/palloc.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -17,6 +18,9 @@ static void kill (struct intr_frame *);
 static void page_fault (struct intr_frame *);
 /* exit with status -1 for invalid addresses */
 static void exit (int);
+
+static bool grow_stack(void *fault_addr);
+static bool is_stack_growth(void *fault_addr, void *esp);
 
 
 /* Registers handlers for interrupts that can be caused by user
@@ -158,24 +162,13 @@ page_fault (struct intr_frame *f)
   if (!is_user_vaddr (fault_addr) || fault_addr == NULL)
     exit (-1);
 
-  struct thread *cur = thread_current ();
-  struct supplemental_page_table *supt = cur->supt;
+  void *esp = f->esp;
 
-  if (not_present) {
-    /* Handle stack growth. */
-    void *esp = user ? f->esp : cur->stack_pointer;
-    if (fault_addr >= (void *)(esp - 32) && fault_addr < PHYS_BASE) {
-      if (!vm_supt_install_zeropage (supt, pg_round_down (fault_addr))) {
-        exit (-1);
-      }
+  /* 추가: 스택 확장 조건 확인 및 처리 */
+  if (not_present && is_stack_growth(fault_addr, esp)) {
+    if (grow_stack(fault_addr)) {
       return;
     }
-
-    /* Attempt to load the page from the supplemental page table. */
-    // if (!vm_load_page (supt, cur->pagedir, fault_addr)) {
-    //   exit (-1);
-    // }
-    // return;
   }
 
   exit(-1);
@@ -208,4 +201,20 @@ exit (int status)
         }
     }
   thread_exit ();
+}
+
+static bool
+is_stack_growth(void *fault_addr, void *esp) {
+  return (fault_addr <= esp && fault_addr < PHYS_BASE && fault_addr >= PHYS_BASE - MAX_STACK_SIZE);
+}
+
+static bool
+grow_stack(void *fault_addr) {
+  void *new_page = pg_round_down(fault_addr);
+
+  if (!vm_supt_install_zeropage(thread_current()->supt, new_page)) {
+    return false;
+  }
+
+  return true;
 }

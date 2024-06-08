@@ -12,7 +12,6 @@ enum page_status{
   FROM_FILESYS
 };
 
-/* Supplemental page table entry. */
 struct supplemental_page_table_entry {
   void *upage;
   void *kpage;
@@ -27,7 +26,6 @@ struct supplemental_page_table_entry {
   bool writable;
 };
 
-/* Supplemental page table. */
 struct supplemental_page_table {
   struct hash page_map;
 };

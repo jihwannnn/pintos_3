@@ -158,12 +158,14 @@ struct thread
     /* file struct represents the execuatable of the current thread */ 
     struct file *exec_file;
 
-    // pt 3
-    struct supplemental_page_table *supt;
-    void *stack_pointer;
-    struct list mmap_list;    
+      
 #endif
 
+#ifdef VM
+   // pt 3
+    struct supplemental_page_table *supt;
+    struct list mmap_list;  
+#endif
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
